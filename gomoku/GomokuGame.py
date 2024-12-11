@@ -1,3 +1,5 @@
+#### THIS CODE CONTAINS THE FUNCTIONS REQUIRED TO VISUALIZE AND RUN THE GOMOKU ENVIRONMENT AND SELECT AI PLAYERS
+
 import pygame
 import pygame.gfxdraw
 import sys
@@ -20,7 +22,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from MCTS import MCTS
 
 class GomokuGame:
+    """ THIS CLASS CONTAINS ALL THE NECESSARY VARIABLES AND FUCNTIONS 
+    FOR GOMOKU GAME PLAY"""
     def __init__(self, AI_type='GreedyPlayer'):
+        ## Loading the Game parameters for visualziation 
         pygame.init()
         self.screen = pygame.display.set_mode(GameParam['WINDOW_SIZE'])
         self.screen_color = GameParam['BOARD_COLOR']
@@ -37,8 +42,10 @@ class GomokuGame:
         self.human_color = 0  # only works in PvA mode 
         self.selected_mode = None
 
+        ## Initializing the environment 
         self.env = GomokuEnv(board_size=self.board_size, win_length=self.win_length)
         # TODO
+        ## AI Player Selection 
         if AI_type == 'GreedyPlayer':
             self.AI = GreedyPlayer(self.env) 
         elif AI_type == 'PureMCTSPlayer':
@@ -71,7 +78,10 @@ class GomokuGame:
 
         else: 
             raise ValueError(f"Unsupported AI type: {AI_type}") 
+
+    
             
+    ### THE FOLLOWING FUCNTIONS FACILIATE THE VISUALIZATION OF THE GOMOKU GAME BOARD AS PER THE GIVEN BOARD SIZE 
 
     def draw_board(self):
         spacing = (self.board_pixel_size - 2 * self.margin) / (self.board_size - 1)
@@ -339,84 +349,156 @@ class GomokuGame:
 
  
     def getInitBoard(self):
-        # Return initial board (numpy array)
-        self.env.reset()
+        """
+        Get the initial board state.
+
+        Returns:
+            np.array: A copy of the initial board state as a numpy array.
+        """
+        self.env.reset()  # Reset the environment to its initial state
         return np.copy(self.env.board)
 
     def getBoardSize(self):
-        # (a,b) tuple representing board dimensions
+        """
+        Get the dimensions of the board.
+
+        Returns:
+            tuple: Dimensions of the board as (rows, columns).
+        """
         return (self.board_size, self.board_size)
 
     def getActionSize(self):
-        # Return total number of possible actions
+        """
+        Get the total number of possible actions.
+
+        Returns:
+            int: Total number of cells on the board.
+        """
         return self.board_size * self.board_size
 
     def getNextState(self, board, player, action):
-        # action must be a valid move
-        next_board = np.copy(board)
-        x, y = divmod(action, self.board_size)
-        next_board[x][y] = player
-        return (next_board, -player)
+        """
+        Get the next state after a given action.
+
+        Args:
+            board (np.array): Current board state.
+            player (int): Current player (1 or -1).
+            action (int): Linear index of the action.
+
+        Returns:
+            tuple: The next board state and the next player.
+        """
+        next_board = np.copy(board)  # Create a copy of the board to modify
+        x, y = divmod(action, self.board_size)  # Convert action to 2D coordinates
+        next_board[x][y] = player  # Place the player's piece on the board
+        return (next_board, -player)  # Switch to the other player
 
     def getValidMoves(self, board, player):
-        valids = np.zeros(self.getActionSize(), dtype=int)
+        """
+        Get a binary vector of valid moves for the current board state.
+
+        Args:
+            board (np.array): Current board state.
+            player (int): Current player (1 or -1).
+
+        Returns:
+            np.array: Binary vector indicating valid moves.
+        """
+        valids = np.zeros(self.getActionSize(), dtype=int)  # Initialize vector
         for idx in range(self.getActionSize()):
-            x, y = divmod(idx, self.board_size)
-            if board[x][y] == 0:
-                valids[idx] = 1
+            x, y = divmod(idx, self.board_size)  # Convert linear index to 2D coordinates
+            if board[x][y] == 0:  # Check if the cell is empty
+                valids[idx] = 1  # Mark as a valid move
         return valids 
 
     def getGameEnded(self, board, player):
-        # Return 0 if not ended, 1 if player 1 wins, -1 if player -1 wins, small value for draw
-        result = self.check_winner(board)
-        if result == 0:
-            if np.all(board != 0):
-                return 1e-8  # Draw
+        """
+        Check if the game has ended.
+
+        Args:
+            board (np.array): Current board state.
+            player (int): Current player (1 or -1).
+
+        Returns:
+            float: 0 if not ended, 1 if player 1 wins, -1 if player -1 wins,
+                   a small value (1e-8) for a draw.
+        """
+        result = self.check_winner(board)  # Check for a winner
+        if result == 0:  # No winner
+            if np.all(board != 0):  # Check for a draw
+                return 1e-8  # Small value for draw
             else:
-                return 0     # Game not ended
+                return 0  # Game not ended
         else:
-            return result if result == player else -result
+            return result if result == player else -result  # Return result from the current player's perspective
 
     def check_winner(self, board):
-        # Check for a winner in the board
-        directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+        """
+        Check for a winner in the current board state.
+
+        Args:
+            board (np.array): Current board state.
+
+        Returns:
+            int: 1 for player 1 win, -1 for player -1 win, 0 for no winner.
+        """
+        directions = [(1, 0), (0, 1), (1, 1), (1, -1)]  # Possible win directions
         for x in range(self.board_size):
             for y in range(self.board_size):
                 player = board[x][y]
-                if player != 0:
+                if player != 0:  # Skip empty cells
                     for dx, dy in directions:
                         count = 1
                         nx, ny = x, y
-                        while True:
+                        while True:  # Check consecutive stones in one direction
                             nx += dx
                             ny += dy
                             if 0 <= nx < self.board_size and 0 <= ny < self.board_size and board[nx][ny] == player:
                                 count += 1
-                                if count == self.env.win_length:
+                                if count == self.env.win_length:  # Win condition met
                                     return player
                             else:
                                 break
         return 0  # No winner
 
     def getCanonicalForm(self, board, player):
-        # Return board if player == 1, else return board with pieces inverted
-        return board * player
+        """
+        Get the canonical form of the board from the current player's perspective.
+
+        Args:
+            board (np.array): Current board state.
+            player (int): Current player (1 or -1).
+
+        Returns:
+            np.array: Canonical board state.
+        """
+        return board * player  # Flip perspective for player -1
 
     def getSymmetries(self, board, pi):
-        # Generate board symmetries for data augmentation
-        assert(len(pi) == self.getActionSize())
-        pi_board = np.reshape(pi, (self.board_size, self.board_size))
+        """
+        Generate symmetric board states and policies for data augmentation.
+
+        Args:
+            board (np.array): Current board state.
+            pi (np.array): Policy vector for the current board.
+
+        Returns:
+            list: List of tuples, where each tuple contains a symmetric board and corresponding policy.
+        """
+        assert(len(pi) == self.getActionSize())  # Ensure policy vector matches board size
+        pi_board = np.reshape(pi, (self.board_size, self.board_size))  # Reshape policy to board dimensions
         l = []
 
-        for i in range(4):
-            for j in [False, True]:
-                newB = np.rot90(board, i)
-                newPi = np.rot90(pi_board, i)
+        for i in range(4):  # Rotate the board 0, 90, 180, and 270 degrees
+            for j in [False, True]:  # Optionally flip the board horizontally
+                newB = np.rot90(board, i)  # Rotate the board
+                newPi = np.rot90(pi_board, i)  # Rotate the policy
                 if j:
-                    newB = np.fliplr(newB)
-                    newPi = np.fliplr(newPi)
-                l.append((newB, list(newPi.ravel())))
-        return l    
+                    newB = np.fliplr(newB)  # Flip the board
+                    newPi = np.fliplr(newPi)  # Flip the policy
+                l.append((newB, list(newPi.ravel())))  # Flatten the policy and append
+        return l
+   
     
     def board_valid_moves(self, board, player):
         """
@@ -450,24 +532,58 @@ class GomokuGame:
         return self.env.get_action_space_size()
     
     def get_next_state(self, board, player, action):
+        """
+        Get the next board state and the next player after applying an action.
+
+        Args:
+            board (np.array): The current board state.
+            player (int): The current player (1 or -1).
+            action (int): The linear index of the action.
+
+        Returns:
+            tuple: Next board state and next player.
+        """
         return self.env.get_next_state(board, player, action) 
     
     def get_canonical_form(self, board, player):
+        """
+        Convert the board to its canonical form, flipping perspective for player -1.
+
+        Args:
+            board (np.array): The current board state.
+            player (int): The current player (1 or -1).
+
+        Returns:
+            np.array: Canonical board state.
+        """
         return self.env.get_canonical_form(board, player)  
 
+    
     @staticmethod
     def display(board):
-        symbols = {0: '.', 1: 'X', -1: 'O'}
+        """
+        Display the board in a human-readable format.
+
+        Args:
+            board (np.array): The current board state.
+        """
+        # Mapping board values to symbols for display
+        symbols = {0: '.', 1: 'X', -1: 'O'}  # Empty: '.', Player 1: 'X', Player -1: 'O'
+
+        # Print column indices
         for y in range(board.shape[1]):
             print("{0:2}".format(y), end="")
         print("")
+        
+        # Print each row with corresponding symbols
         for x in range(board.shape[0]):
             for y in range(board.shape[1]):
                 piece = board[x][y]
-                symbol = symbols.get(piece, '?')
+                symbol = symbols.get(piece, '?')  # Default to '?' if symbol not found
                 print("{0:2}".format(symbol), end="")
-            print("")
-        print("")
+            print("")  # Newline after each row
+        
+        print("")  # Additional newline for spacing
 
 
 def main():

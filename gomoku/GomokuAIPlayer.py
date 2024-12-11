@@ -1,3 +1,5 @@
+### THIS CODE DEFINES ALL THE CLASSES FOR INITIALIZING THE DIFFERENT TYPES OF AI PLAYERS - GREEDY, MCTS, MCTS+NN, AND DQN.  
+
 import numpy as np
 import math
 import random
@@ -9,19 +11,34 @@ from nnet_models.DQNNet import DQNNet
 from nnet_models.dqn_utils import * 
 
 
+# Base Player class
 class Player:
+    """
+    Abstract base class for all player types. Defines the required methods 
+    for getting a move and performing a move.
+    """
     def get_move(self):
         raise NotImplementedError("Subclasses should implement get_move!")
     
     def move(self):
         raise NotImplementedError("Subclasses should implement move!")
 
+
+# GreedyPlayer class
 class GreedyPlayer(Player):
+    """
+    A player that evaluates legal moves and selects the one with the highest heuristic score.
+    """
     def __init__(self, env):
         self.env = env
 
     def get_move(self):
-        
+        """
+        Calculates the best move based on a heuristic score for all legal moves.
+
+        Returns:
+            (tuple): Coordinates (x, y) of the selected move.
+        """
         board = self.env.board
         current_player = self.env.current_player
         opponent = 1 if current_player == 2 else 2
@@ -29,10 +46,14 @@ class GreedyPlayer(Player):
         legal_moves = self.env.legal_moves()
 
         def calculate_score(x, y, player):
+            """
+            Evaluates the heuristic score of a position based on its proximity
+            to other stones and the center of the board.
+            """
             score = 0
             directions = [(1, 0), (0, 1), (1, 1), (1, -1),
-                        (-1, 0), (0, -1), (-1, -1), (-1, 1)]
-    
+                          (-1, 0), (0, -1), (-1, -1), (-1, 1)]
+
             for dx, dy in directions:
                 player_count = 0
                 opponent_count = 0
@@ -54,14 +75,15 @@ class GreedyPlayer(Player):
                 score += player_count ** 2.5
                 score += opponent_count ** 2.5
 
+            # Reward moves closer to the center
             centre_x, centre_y = self.env.board_size // 2, self.env.board_size // 2
             score -= math.sqrt(abs(x - centre_x) ** 2 + abs(y - centre_y) ** 2) / (self.env.board_size)
 
             return score
 
+        # Evaluate all legal moves and select the one with the maximum score
         best_move = None
         max_score = -float('inf')
-
         for move in legal_moves:
             x, y = move // board_size, move % board_size
             score = calculate_score(x, y, current_player)
@@ -72,15 +94,24 @@ class GreedyPlayer(Player):
         return divmod(best_move, board_size)
 
     def move(self):
+        """
+        Executes the selected move in the environment.
+        """
         x, y = self.get_move()
         self.env.step(self.env.pos_to_action((x, y)))
-    
+
+
+# PureMCTSPlayer class
 class PureMCTSPlayer(Player):
+    """
+    A player that uses a Monte Carlo Tree Search (MCTS) strategy to select moves.
+    """
     def __init__(self, env, mcts, num_train_steps=5):
         self.env = env
         self.mcts = mcts
         self.num_train_steps = num_train_steps
-        
+
+        # Train MCTS on the current board state
         board = self.env.board
         current_player = self.env.current_player
         canonical_board = self.env.get_canonical_form(board, current_player)
@@ -88,24 +119,35 @@ class PureMCTSPlayer(Player):
             self.mcts.getActionProb(canonical_board, temperature=1)
 
     def get_move(self):
+        """
+        Uses MCTS to select the best move based on the current board state.
+
+        Returns:
+            (tuple): Coordinates (x, y) of the selected move.
+        """
         board = self.env.board
         current_player = self.env.current_player
         canonical_board = self.env.get_canonical_form(board, current_player)
-        
-        # print(len(self.mcts.Qsa))
         for _ in range(self.num_train_steps):
             self.mcts.getActionProb(canonical_board, temperature=1)
-        # print(canonical_board)
-        action_probs = self.mcts.getActionProb(canonical_board, temperature=0)  # temperature=0 for greedy move
+        action_probs = self.mcts.getActionProb(canonical_board, temperature=0)  # Greedy move
         best_action = np.argmax(action_probs)
-        # print(best_action)
         return divmod(best_action, self.env.board_size)
-    
+
     def move(self):
+        """
+        Executes the selected move in the environment.
+        """
         x, y = self.get_move()
         self.env.step(self.env.pos_to_action((x, y)))
+
+
         
 class MCTSNNPlayer(Player):
+    """
+    Similar to PureMCTSPlayer, but uses a neural network to assist in the MCTS process.
+    Inherits most functionality from PureMCTSPlayer.
+    """
     def __init__(self, env, mcts, num_train_steps=5):
         self.env = env
         self.mcts = mcts
@@ -135,7 +177,11 @@ class MCTSNNPlayer(Player):
     
 
 
+# DQNPlayer class
 class DQNPlayer(Player):
+    """
+    A player that uses Deep Q-Learning (DQN) for decision-making.
+    """
     def __init__(self, env, gamma=0.99, lr=5e-5, batch_size=256, buffer_size=50000, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay=0.9995, target_update=1000):
         self.env = env
         self.board_size = env.board_size
@@ -147,17 +193,20 @@ class DQNPlayer(Player):
         self.target_update = target_update 
         self.train_steps = 0
 
+        # Initialize policy and target networks
         self.policy_net = DQNNet(board_size=self.board_size)
         self.target_net = DQNNet(board_size=self.board_size)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
+        # Optimizer and replay buffer
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=lr)
         self.replay_buffer = PrioritizedReplayBuffer(capacity=buffer_size) 
 
         # Track last state-action for training
         self.last_state = None
         self.last_action = None
+
 
     def get_state_tensor(self, board):
         # board: (board_size, board_size)
@@ -270,14 +319,27 @@ class DQNPlayer(Player):
 
 
 
+# RandomPlayer class
 class RandomPlayer(Player):
+    """
+    A player that selects moves randomly from the list of legal moves.
+    """
     def __init__(self, env):
         self.env = env
 
     def get_move(self):
+        """
+        Randomly selects a legal move.
+
+        Returns:
+            (int): A randomly chosen legal move.
+        """
         legal_moves = self.env.legal_moves()
         return random.choice(legal_moves)   
 
     def move(self):
+        """
+        Executes the selected random move in the environment.
+        """
         action = self.get_move()
-        self.env.step(action) 
+        self.env.step(action)

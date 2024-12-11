@@ -1,3 +1,7 @@
+### This code contains the main function for self-play using MCTS and Neural Network model training. This is the core algorithm inspired by the AlphaZero approach.
+
+
+
 import logging
 import os
 import sys
@@ -20,7 +24,14 @@ log = logging.getLogger(__name__)
 
 
 class Coach():
+    """
+    Manages the training process, including self-play, neural network training, 
+    and evaluation against previous models.
+    """
     def __init__(self, game, nnet, args):
+        """
+        Initialize the Coach with the game, neural network, and configuration arguments.
+        """
         self.game = game
         self.nnet = nnet
         self.pnet = self.nnet.__class__(self.game)  # the competitor network
@@ -30,40 +41,53 @@ class Coach():
         self.skipFirstSelfPlay = False  # can be overriden in loadTrainExamples() 
 
     def executeEpisode(self):
+        """
+        Executes a single episode of self-play using MCTS and the current neural network.
+        
+        Returns:
+            A list of training examples generated during the episode.
+        """
         trainExamples = []
         board = self.game.getInitBoard()
         self.curPlayer = 1
         episodeStep = 0
 
+        # Self-play loop
         while True:
             episodeStep += 1
             canonicalBoard = self.game.getCanonicalForm(board, self.curPlayer)
             temp = int(episodeStep < self.args.tempThreshold)
 
+            # Get action probabilities using MCTS
             pi = self.mcts.getActionProb(canonicalBoard, temperature=temp)
             sym = self.game.getSymmetries(canonicalBoard, pi)
+
+            # Generate symmetric examples for data augmentation
             for b, p in sym:
                 trainExamples.append([b, self.curPlayer, p, None])
 
+            # Choose an action based on probabilities
             action = np.random.choice(len(pi), p=pi)
             board, self.curPlayer = self.game.getNextState(board, self.curPlayer, action)
-
+            
+            # Check if the game has ended
             r = self.game.getGameEnded(board, self.curPlayer)
 
             if r != 0:
+                # Assign outcomes to training examples
                 return [(x[0], x[2], r * ((-1) ** (x[1] != self.curPlayer))) for x in trainExamples]
 
     def learn(self):
-
-        policy_losses = []
-        value_losses = []
-        total_losses = []
-        rewards_per_episode = []  # To track rewards for plotting
+        """
+        Main training loop for AlphaZero. Alternates between self-play, training, 
+        and evaluation of the new model against the previous one.
+        """
 
         for i in range(1, self.args.numIters + 1):
-            # bookkeeping
+            # Logging iteration progress
             log.info(f'Starting Iter #{i} ...')
-            # examples of the iteration
+
+            # Generate training examples via self-play
             if not self.skipFirstSelfPlay or i > 1:
                 iterationTrainExamples = deque([], maxlen=self.args.maxlenOfQueue)
                 
@@ -74,22 +98,22 @@ class Coach():
                 # save the iteration examples to the history 
                 self.trainExamplesHistory.append(iterationTrainExamples)
 
-
+             # Maintain a limited history of training examples
             if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
                 log.warning(
                     f"Removing the oldest entry in trainExamples. len(trainExamplesHistory) = {len(self.trainExamplesHistory)}")
                 self.trainExamplesHistory.pop(0)
-            # backup history to a file
-            # NB! the examples were collected using the model from the previous iteration, so (i-1)  
+
+            # Save training examples to a file 
             self.saveTrainExamples(i - 1)
 
-            # shuffle examples before training
+            # Combine and shuffle all training examples
             trainExamples = []
             for e in self.trainExamplesHistory:
                 trainExamples.extend(e)
             shuffle(trainExamples) 
 
-            # training new network, keeping a copy of the old one
+            # Save the current neural network and train a new one
             self.nnet.save_checkpoint(folder=self.args.checkpoint, filename='temp.pth.tar') 
             self.pnet.load_checkpoint(folder=self.args.checkpoint, filename='temp.pth.tar') 
             pmcts = MCTS(self.game, self.pnet, self.args) 
@@ -102,6 +126,7 @@ class Coach():
 
             nmcts = MCTS(self.game, self.nnet, self.args) 
 
+            # Evaluate the new model against the previous one
             game1 = GomokuEnv()
             player1 = MCTSNNPlayer(game1, nmcts) 
             player2 = MCTSNNPlayer(game1, pmcts) 
@@ -117,6 +142,7 @@ class Coach():
 
             log.info('NEW/PREV WINS : %d / %d ; DRAWS : %d' % (nwins, pwins, draws)) 
 
+            # Decide whether to accept the new model
             if pwins + nwins == 0 or float(nwins) / (pwins + nwins) < self.args.updateThreshold:
                 log.info('REJECTING NEW MODEL')
                 self.nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp.pth.tar')
@@ -158,9 +184,15 @@ class Coach():
 
 
     def getCheckpointFile(self, iteration):
+        """
+        Generate a checkpoint filename for a specific iteration.
+        """
         return 'checkpoint_' + str(iteration) + '.pth.tar'
 
     def saveTrainExamples(self, iteration):
+        """
+        Save the training examples to a file for later use.
+        """
         folder = self.args.checkpoint
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -170,6 +202,9 @@ class Coach():
         f.closed
 
     def loadTrainExamples(self):
+        """
+        Load training examples from a file, if available.
+        """
         modelFile = os.path.join(self.args.load_folder_file[0], self.args.load_folder_file[1])
         examplesFile = modelFile + ".examples"
         if not os.path.isfile(examplesFile):
@@ -183,5 +218,5 @@ class Coach():
                 self.trainExamplesHistory = Unpickler(f).load()
             log.info('Loading done!')
 
-            # examples based on the model were already collected (loaded)
+            # Skip the first self-play iteration if examples are loaded
             self.skipFirstSelfPlay = True

@@ -1,3 +1,5 @@
+### This code can be used to play games against any one of the four players the user selects. The user can also play games against another person.
+
 import sys
 import os
 

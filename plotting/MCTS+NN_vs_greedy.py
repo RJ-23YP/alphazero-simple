@@ -1,3 +1,8 @@
+### This code can be used for evaluation of any 2 players using the Arena class. Equal number of matches are played
+### by alternating the 2 players as black and white. The win, loss and draw results are displayed. Uncomment the 2 players
+## you want to play with and comment the rest. 
+
+
 from Arena import Arena
 
 from gomoku.GomokuGame import GomokuGame as Game
@@ -16,7 +21,7 @@ game = GomokuEnv()
 
 nnet = nn(Game())
 
-checkpoint_path = "/media/rj/New Volume/Northeastern University/Semester-3 (Fall 2024)/CS 5180 - RL/FInal Project/Submission/alphazero-simple/saved_models/TRAIN_50SP_10EPOCH_100SIM.pth.tar" 
+checkpoint_path = "saved_models/TRAIN_50SP_10EPOCH_100SIM.pth.tar" 
 
 if checkpoint_path and os.path.exists(checkpoint_path):
     print(f"Loading checkpoint from {checkpoint_path}")
@@ -25,9 +30,10 @@ if checkpoint_path and os.path.exists(checkpoint_path):
 else:
     print("Warning: No checkpoint specified; using randomly initialized network.") 
 
+#### Uncomment this if you want to play with DQN as player-1
 
 # # Add DQNPlayer with model weights
-# dqn_weights_path = "/media/rj/New Volume/Northeastern University/Semester-3 (Fall 2024)/CS 5180 - RL/FInal Project/Submission/alphazero-simple/saved_models/dqn_final_weights.pth"  # Path to DQN weights
+# dqn_weights_path = "saved_models/dqn_final_weights.pth"  # Path to DQN weights
 # dqn_player1 = DQNPlayer(game)  # Initialize DQN player 
 
 # if dqn_weights_path and os.path.exists(dqn_weights_path):
@@ -40,7 +46,7 @@ else:
 # player1 = dqn_player1  # Use DQN player as Player 1 
 
 player1 = MCTSNNPlayer(game, MCTS(game=game, nnet=nnet, args=args)) 
-# player2 = PureMCTSPlayer(game, MCTS(game=game, nnet=None, args=args))
+# player2 = PureMCTSPlayer(game, MCTS(game=game, nnet=None, args=args)) ### Uncomment if you want to use pure MCTS as player 2
 
 player2 = GreedyPlayer(game) 
 
