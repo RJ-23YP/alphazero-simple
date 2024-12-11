@@ -29,3 +29,7 @@ You (black) and the AI (white) take turns placing pieces on a 15x15 board.
 The first player to get five consecutive pieces in a row (horizontally, vertically, or diagonally) wins.
 Enjoy the game!
 
+## Trained Models for DQN and MCTS+NN:
+
+https://www.dropbox.com/scl/fo/8riivrfbsuxdepbuactys/AN7sntY4xukWFvvwk6ap2xQ?rlkey=n196036kvz0cboeojoc0nst3v&st=nsqvftp2&dl=0
+
