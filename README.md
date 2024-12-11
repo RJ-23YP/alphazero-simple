@@ -72,6 +72,6 @@ python dqn_training.py
 
 ## Gameplay video demonstration:
 
-
+https://www.dropbox.com/scl/fi/zaw9tq34onc9pdho1ucit/RL_Project_Gomoku-2024-12-11_00.41.47.mp4?rlkey=ei6v82hcosnw7skqshyq2tzsy&st=o78pv88r&dl=0
 
 
