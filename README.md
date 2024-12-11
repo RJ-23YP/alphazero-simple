@@ -46,5 +46,32 @@ Execute the command:
 python -m plotting.MCTS+NN_vs_greedy
 ```
 
+## Train the AlphaZero-based model:
+
+The user can run the main self-play and neural network training for the AlphaZero-based MCTS + Neural Network player using this command. The user can set the training parameters in the GomokuGameVars.py file in the Gomoku folder if required.  
+
+Open a terminal and navigate to the root directory of this project.
+
+Execute the command:
+
+```
+python main.py
+```
+
+## Train the DQN model:
+
+The user can run the DQN training process using this code. The user can change the number of iterations and episodes for training in this code. Hyperparameters can be changed in the GomokuAIPlayer.py file in the Gomoku folder if required.
+
+Open a terminal and navigate to the root directory of this project.
+
+Execute the command:
+
+```
+python dqn_training.py
+```
+
+## Gameplay video demonstration:
+
+
 
 
